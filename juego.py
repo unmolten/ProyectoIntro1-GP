@@ -15,15 +15,19 @@ canvy = 750 # altura
 canvJuego = tk.Canvas(root,bg="#555555",width=canvx,height=canvy) # Se asignan los valores para las propiedades
 canvJuego.pack() # Se coloca el canvas
 
-p1 = canvJuego.create_rectangle(0,canvy,30,canvy-50,fill="red") # Se crea un rectangulo con las coordenadas dadas y de color rojo
 # Coordenadas con .coords son 
 # [0] = x0, 
 # [1] = y0, 
 # [2] = x1, 
 # [3] = y1
+p1 = canvJuego.create_rectangle(0,canvy,30,canvy-50,fill="red") # Se crea un rectangulo con las coordenadas dadas y de color rojo
+p1pies = canvJuego.create_rectangle(0,canvy,30,canvy-10,fill="green") 
+caja = canvJuego.create_rectangle(50, canvy - 150, 450, canvy- 100,fill="blue")
+
 
 bucle = None # Guarda el ID del after() para luego poder cancelar el bucle
 saltando = False # Guarda el estado de salto
+aire = False
 vely = 0 # velocidad en el eje y (no cambia la altura del salto desde acá)
 velx = 10 # velocidad en el eje x (no se cambia mucho)
 
@@ -70,8 +74,10 @@ def mover():
         # Revisa si se mantiene el boton, y se esta dentro del marco del canvas
         if d_held and x1 <= canvx:
             canvJuego.move(p1, velx, 0) # Al personaje (p1) se mueve a la derecha y 0 hacia arriba
+            canvJuego.move(p1pies, velx, 0)
         elif a_held and x0 >= 0:
-            canvJuego.move(p1, -velx, 0) # Al personaje (p1) se mueve a la izq y 0 hacia arriba
+            canvJuego.move(p1, -velx, 0)
+            canvJuego.move(p1pies, -velx, 0) # Al personaje (p1) se mueve a la izq y 0 hacia arriba
         ultimo_frame = ahora
 
     # Se hace el bucle para que sea consistente
@@ -84,29 +90,59 @@ def mover():
 # La logica del salto es: si no esta en medio salto, añade velocidad vertical (para luego en gravedad mover el objeto)
 # no se le añade deltatime porque no cambia mucho, ademas ya que el jugador saltaria moviendose usualmente y eso arregla el bug
 def saltar(evento):
-    global saltando, vel_y
+    global saltando, vel_y, aire
     # Revisa si no esta en el aire
     if not saltando:
+        vel_y=0
+        canvJuego.move(p1, 0, -5) 
+        canvJuego.move(p1pies,0,-5)
         saltando = True 
+        aire = True
         vel_y = -20 # esta variable modifica la altura del salto
         gravedad()
 
 # Cuando esta en el aire, su velocidad hacia arriba va bajando por 1 hasta llegar al piso
-def gravedad():
-    global saltando, vel_y
-    canvJuego.move(p1, 0, vel_y)  # Va moviendo el jugador verticalmente, empieza llendo para arriba, y va desacelerando 
-    vel_y += 1 # Aumenta la velocidad para abajo
 
-    y2 = canvJuego.coords(p1)[3] # Coordenada de parte de abajo del personaje
+
+# Se tiene que reescribir el sistema de gravedad porque hace demasiadas llamadas recursivas innecesarias con lo de colision.
+def gravedad():
+    global saltando, vel_y, aire
+    if aire and colision() == "nada":
+        canvJuego.move(p1, 0, vel_y)  # Va moviendo el jugador verticalmente, empieza llendo para arriba, y va desacelerando 
+        canvJuego.move(p1pies,0,vel_y)
+        vel_y += 1 # Aumenta la velocidad para abajo
+
+    y1 = canvJuego.coords(p1)[3] # Coordenada de parte de abajo del personaje
+
+    if colision() == "pies":
+        vel_y = 0
+        saltando = False
+           
 
     # revisa si choca con el piso, y para de mover hacia abajo
-    if y2 >= canvy - 10:
-        canvJuego.move(p1, 0, canvy - y2) # mueve el personaje al nivel piso para evitar que se quede pegado el jugador
+    if y1 >= canvy - 10:
+        canvJuego.move(p1, 0, canvy - y1) # mueve el personaje al nivel piso para evitar que se quede pegado el jugador
+        canvJuego.move(p1pies, 0, canvy - y1)
         saltando = False
+        aire = False
         vel_y = 0 # quita la velocidad
     else:
         root.after(18, gravedad) # bucle para el movimiento
-    
+
+
+def colision():
+    x0 = canvJuego.coords(caja)[0]
+    y0 =canvJuego.coords(caja)[1]
+    x1 =canvJuego.coords(caja)[2]
+    y1 = canvJuego.coords(caja)[3]
+    colisionx = canvJuego.find_overlapping(x0,y0,x1,y1)
+    if colisionx == (1,3):
+        return "nopies"
+    elif colisionx == (1,2,3):
+        return "pies"
+    elif colisionx == (3,):
+        return "nada"
+
 """ Funciones un poco complicadas, lo que hacen es que detectan cada ingreso de la tecla y .bind() les asigna un evento.
 para poder llamar otras funciones con otras variables, se hace un lambda con parametro evento para que pueda guardar lo que asigna
 .bind() y ademas poder mandar ese evento mas las variables para el resto. Bueno asi creo que sirve pero puedo estar incorrecto""" 
