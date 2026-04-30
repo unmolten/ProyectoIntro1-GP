@@ -10,6 +10,12 @@ Prompts usados:
 
 "Muéstrame el patrón, no el código completo y explícame la lógica, con un ejemplo mínimo, para yo aprender como usar la funcion sin más ayuda."
 
+"En tkinter, tengo una función gravedad() que se llama recursivamente con root.after(), pero sigue aumentando la gravedad a pesar de que cancelo el bucle. Cómo detengo el bucle cuando hay una colisión sin llamar root.after() de nuevo?"
+
+"En tkinter, tengo una función gravedad() con root.after(). Cómo detecto si el jugador aterrizó en el tope de una caja o chocó con el fondo, usando la velocidad del frame anterior para saber de qué dirección venía?"
+
+
+
 sanjeev2552. (2025, julio 11). Python | Binding function in Tkinter. [Publicación en un foro en línea]. GeeksforGeeks. https://www.geeksforgeeks.org/python/python-binding-function-in-tkinter/
 
 sanjeev2552. (2025, julio 11). Python | after method in Tkinter. GeeksforGeeks. https://www.geeksforgeeks.org/python/python-after-method-in-tkinter/
@@ -22,3 +28,4 @@ baraltech. (2022, 3 marzo). Easy Way to Make Jumping in PyGame! (7 Mins) [Archiv
 
 Indierama. (2022, 19 septiembre). DELTATIME e independencia de FRAMERATE [Archivo de Vídeo]. YouTube. https://www.youtube.com/watch?v=IpPYrfsKeCQ
 
+Bytes N Bits. (2020, 3 enero). Bounding Box Collision Detection - Game Coding Tutorial [Archivo de Vídeo]. YouTube. https://www.youtube.com/watch?v=SoSHVoIZYbY

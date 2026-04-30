@@ -2,167 +2,293 @@ import tkinter as tk
 import random
 import time
 
-
-# Creacion de la ventana "raiz"
+# Ventana principal
 root = tk.Tk()
-root.geometry("1000x750+100+100") # Dimensiones de ventana, el +100+100 coloca la ventana 100 pixeles a la derecha y 100 pixeles abajo
-root.resizable(0,0) # Evita cambiar la ventana de tamaño
+root.geometry("1000x800+100+100")
+root.resizable(0,0)
 
-# Variables para tener tamaños constantes
-canvx = 500 # grosor
-canvy = 500 # altura
-# Creacion de un canvas para colocar los objetos dentro de el:
-canvJuego = tk.Canvas(root,bg="#555555",width=canvx,height=canvy) # Se asignan los valores para las propiedades
-canvJuego.pack() # Se coloca el canvas
+# Tamaño del canvas
+canvx = 900
+canvy = 750
 
-# Coordenadas con .coords son 
-# [0] = x0, 
-# [1] = y0, 
-# [2] = x1, 
-# [3] = y1
-p1 = canvJuego.create_rectangle(0,canvy,30,canvy-50,fill="red") # Se crea un rectangulo con las coordenadas dadas y de color rojo
+# Canvas
+canvJuego = tk.Canvas(root,bg="#555555",width=canvx,height=canvy)
+canvJuego.pack(side="top")
 
-mapa = [
-    [0,0,0,0,0],
-    [1,1,1,0,0],
-    [0,0,0,0,0],
-    [1,0,0,1,0],
-    [0,0,0,0,1]
-]
-
-cajasmapa = []
+# Jugador
+p1 = canvJuego.create_rectangle(0,canvy,30,canvy-50,fill="red")
 
 
-bucle = [None] # Guarda el ID del after() para luego poder cancelar el bucle
-saltando = [False] # Guarda el estado de salto
-vely = [0] # velocidad en el eje y (no cambia la altura del salto desde acá)
-velx = 10 # velocidad en el eje x (no se cambia mucho)
+# Variables
+bucles = [None,None] # Se guardan los id de los bucles para luego cancelarlos con un None
+saltando = [False] # Estado de salto
+ultimo_frame= [time.time()] # Tiempo desde la ultima llamada para el delta time (ver documentación)
+cajasmapa = [[]] # Se guardan los id de las cajas del mapa
+vely = [0] # Velocidad vertical
+velx = 12 # Velocidad horizontal (no cambia)
 
-""" Debido a un bug con after() que causa que con tiempos muy pequeños, se actualiza correctamente solo cuando se mueve el mouse.
-esto hace que se vea muy cortado y 'lageado'. entonces se toma el tiempo y se resta con la ultima vez que se tomo el tiempo y se
-revisa si es mayor o igual a 16ms. A esto se le llama Delta time, y se usa de manera muy comun en videojuegos más avanzados y
-en este caso arregla el problema de la funcion after()"""
-ultimo_frame=[time.time()]
 
-# Variables para ver si la tecla esta actualmente presionada
-d_held = [False] # der
-a_held = [False] # izq
 
-# Al entrar una tecla, cambia la variable asociada a True, lo cual activa los bucles de movimiento.
-# Esta manera de hacerlo evita errores y se puede trabajar más adelante
+# Indicadores si la tecla esta siendo presionada. 
+d_held = [False]
+a_held = [False]
 
+# --- INPUT ---
 def presionar(evento, tecla):
     if tecla == "d":
-        d_held[0] = True # Tecla d presionda
+        d_held[0] = True # Si recive la tecla d indica que esta siendo mantenida
     elif tecla == "a": 
-        a_held[0] = True # Tecla a presionada
+        a_held[0] = True # Igual aca
 
-    if bucle[0] == None: # Revisa si no hay bucles para no hacer un bucle infinito con after()
+    if bucles[0] == None: # Ademas revisa si no hay bucles previos para llamar la funcion de movimiento
         mover()
 
-# Si entra una tecla, cambia la variable a false, es decir suelta la tecla
+# "Suelta" la tecla presionada
 def soltar(evento, tecla):
     if tecla == "d":
-        d_held[0] = False # suelta d
+        d_held[0] = False 
     elif tecla == "a":
-        a_held[0] = False # suelta a
+        a_held[0] = False
 
+# --- MOVIMIENTO ---
+
+# Funcion de movimiento horizontal.
 def mover():
-
-    # Coordenadas del jugador para revisar si se sale o no de la pantalla
+    # Coordenadas del jugador
     x0 = canvJuego.coords(p1)[0] 
     x1 = canvJuego.coords(p1)[2]
+    
+    # Calculos para el delta time
     ahora = time.time()
-    dt = min(ahora - ultimo_frame[0], 0.016) #se limita el dt a 16ms o menos para no causar errores
-
-    # Empieza a contar el tiempo para luego hacer la comparacion
-    # Revisa si se mantiene el boton, y se esta dentro del marco del canvas
-    if d_held[0] and x1 <= canvx:
-        canvJuego.move(p1, velx * dt * 60, 0) # Al personaje (p1) se mueve a la derecha y 0 hacia arriba
-    elif a_held[0] and x0 >= 0:
-        canvJuego.move(p1, -velx * dt  * 60, 0) # Al personaje (p1) se mueve a la izq y 0 hacia arriba
-
+    dt = min(ahora - ultimo_frame[0], 0.016)
     ultimo_frame[0] = ahora
 
-    # Se hace el bucle para que sea consistente
+    # Indicadores con que lado se dio una colision para no poder moverse a ese lado
+    colx_der = False
+    colx_izq = False
+
+    # Revisar colisiones por cada caja que hay en el mapa
+    for i in range(len(cajasmapa[0])):
+        # Originalmente se llamaba colision(cajasmapa[0][i]) y se le daba el indice pero esto lo hace mas limpio
+        col = colision(cajasmapa[0][i])
+        tag = canvJuego.gettags(cajasmapa[0][i]) # Revisa los tags de la caja para ver si es una escalera
+        # Revisa si esta chocando horizontalmente [0] y si choca en un y un poco mas alto para que no se quede pegado
+        if col[0] and col[2] and tag[0] != "Escalera": 
+            # Consigue las cordenadas si hay una colison
+            x0caja = canvJuego.coords(cajasmapa[0][i])[0]
+            x1caja = canvJuego.coords(cajasmapa[0][i])[2]
+
+            # Si chocha el lado derecho
+            if x0 <= x0caja:
+                colx_der = True
+                canvJuego.move(p1, x0caja - x1, 0) # Se mueve al borde para que no este dentro
+            # Si choca con el lado izq
+            else:
+                colx_izq = True
+                canvJuego.move(p1, x1caja - x0, 0) # Igual al borde
+
+    # Si se mantiene la tecla, esta en los margenes de la ventana, y no hay colision, se puede mover
+    if d_held[0] and x1 <= canvx and not colx_der:
+        canvJuego.move(p1, velx * dt * 60, 0)
+    elif a_held[0] and x0 >= 0 and not colx_izq:
+        canvJuego.move(p1, -velx * dt  * 60, 0)
+
+    # Se llama la gravedad desde aca para asegurarse de que tenga gravedad cuando camina fuera de una caja
+    if not saltando[0] and not en_piso() and bucles[1] is None:
+        saltando[0] = True
+        gravedad()
+    
+    # Bucle del movimiento.
     if d_held[0] or a_held[0]:
-        bucle[0] = root.after(1,mover)
+        bucles[0] = root.after(1,mover)
     else:
-        bucle[0] = None  # los bucles se detienen para que el personaje se detenga
+        bucles[0] = None # Si no se presiona ninguna tecla, se cancela el bucle
 
+# --- SALTO ---
 
-# La logica del salto es: si no esta en medio salto, añade velocidad vertical (para luego en gravedad mover el objeto)
-# no se le añade deltatime porque no cambia mucho, ademas ya que el jugador saltaria moviendose usualmente y eso arregla el bug
 def saltar(evento):
-    # Revisa si no esta en el aire
     if not saltando[0]:
         saltando[0] = True 
-        vely[0] = -20 # esta variable modifica la altura del salto
+        vely[0] = -17 # Asocia la altura del salto basicamente
         gravedad()
 
-# Cuando esta en el aire, su velocidad hacia arriba va bajando por 1 hasta llegar al piso
+# --- GRAVEDAD ---d 
 
-
-# Se tiene que reescribir el sistema de gravedad porque hace demasiadas llamadas recursivas innecesarias con lo de colision.
+# Logica de gravedad, funcion un poco compleja y rara pero sirve. 
 def gravedad():
-    canvJuego.move(p1, 0, vely[0])  # Va moviendo el jugador verticalmente, empieza llendo para arriba, y va desacelerando 
-    vely[0] += 1 # Aumenta la velocidad para abajo
+    vely_anterior = vely[0]  # Guarda la velocidad antes de modificar para saber de donde venia el jugador
+    canvJuego.move(p1, 0, vely[0])
+    vely[0] += 1  # Aumenta la velocidad para abajo (gravedad)
 
-    y1 = canvJuego.coords(p1)[3] # Coordenada de parte de abajo del personaje
+    # Coordenadas verticales del jugador
+    y0 = canvJuego.coords(p1)[1]
+    y1 = canvJuego.coords(p1)[3]
 
-    # revisa si choca con el piso, y para de mover hacia abajo
+    # Revision de colisiones con las cajas
+    for i in range(len(cajasmapa[0])):
+        col = colision(cajasmapa[0][i])
+        tag = canvJuego.gettags(cajasmapa[0][i])
+        if col[0] and col[1] and tag[0] != "Escalera":
+            y0caja = canvJuego.coords(cajasmapa[0][i])[1]  # lado arriba de la caja
+            y1caja = canvJuego.coords(cajasmapa[0][i])[3]  # abajo de la caja
+
+            # Si cae y el jugador esta en la parte de arriba de la caja
+            if vely_anterior >= 0 and y1 >= y0caja and y1 <= y0caja + vely_anterior + 5:
+                canvJuego.move(p1, 0, y0caja - y1)  # corrige posicion al borde
+                saltando[0] = False
+                vely[0] = 0
+                bucles[1] = None
+                return 0  # sale de la funcion para no seguir con el bucle
+
+            # Si sube y la cabeza esta en el rango del fondo de la caja
+            elif vely_anterior < 0 and y0 <= y1caja and y0 >= y1caja + vely_anterior - 5:
+                canvJuego.move(p1, 0, y1caja - y0)  # empuja hacia abajo de la caja
+                saltando[0] = True  # sigue en el aire
+                vely[0] = 1  # empieza a caer
+
+    # Colision con el piso de la ventana
     if y1 >= canvy - 10:
-        canvJuego.move(p1, 0, canvy - y2) # mueve el personaje al nivel piso para evitar que se quede pegado el jugador
+        canvJuego.move(p1, 0, canvy - y1)  # corrige al borde del piso
         saltando[0] = False
-        vely[0] = 0 # quita la velocidad
+        vely[0] = 0
+        bucles[1] = None
     else:
-        root.after(18, gravedad) # bucle para el movimiento
+        bucles[1] = root.after(17, gravedad)  # sigue el bucle si no esta en el piso
+
+# --- COLISIONES ---
+
+# Revisa si esta apoyado en una plataforma o en el piso
+def en_piso():
+    # "pies" del personaje
+    y1 = canvJuego.coords(p1)[3]
+
+    # Piso de la ventana
+    if y1 >= canvy - 10:
+        return True
+    
+    # Revisa para las cajas
+    for i in range(len(cajasmapa[0])):
+        col = colision(cajasmapa[0][i])
+        tag = canvJuego.gettags(cajasmapa[0][i])
+        if col[1] and col[3] and  tag[0] != "Escalera": # [1] (vertical) y [3] (x pero mas pequeño) y escalera
+        
+            return True
+        
+    # Si no hay nada, returna false
+    return False
+
+# Sistema de colision con las cajas (originalmente se trato de usar canvas.find_overlapping() pero entre mas elementos habian
+# retornaba una tupla muy confusa.)
+def colision(caja): 
+    
+    # Variables para las colisiones
+    colx = False
+    coly = False
+    adentroy = False
+    adentrox = False
+
+    # Coordenadas jugador
+    x0 = canvJuego.coords(p1)[0] 
+    y0 = canvJuego.coords(p1)[1] 
+    x1 = canvJuego.coords(p1)[2]
+    y1 = canvJuego.coords(p1)[3]
+
+    # Coordenadas caja
+    x0caja = canvJuego.coords(caja)[0]
+    y0caja =canvJuego.coords(caja)[1]
+    x1caja =canvJuego.coords(caja)[2]
+    y1caja = canvJuego.coords(caja)[3]
+
+    # Revisar colisiones
+    if x1 > x0caja and x0 < x1caja: # colision en x
+        colx = True
+    if y1  >= y0caja and y0 <= y1caja: # colision en y
+        coly = True
+    if y1 - 10 >= y0caja and y0 + 10 <= y1caja: # y mas pequeño
+        adentroy = True
+    if x1 -10 >= x0caja and x0 + 10 <= x1caja: # x mas pequeño
+        adentrox = True
+
+    return [colx,coly,adentroy,adentrox] # Retorna todo para revisar colisiones individualmente
+
+# --- CREAR MAPA ---
+
+# Mapa 12x10 (1 = bloque)
+mapa = [
+    [0,1,0,0,0,0,0,0,0,0,0,0],
+    [0,1,0,0,0,0,0,0,0,0,0,0],
+    [0,1,0,0,0,1,0,0,1,1,1,1],
+    [0,1,3,3,0,0,0,0,1,0,0,0],
+    [0,1,1,1,0,0,0,0,1,0,0,0],
+    [0,1,0,0,0,1,1,0,0,0,0,0],
+    [0,1,0,0,0,0,0,0,0,0,0,0],
+    [0,1,1,1,1,1,1,1,2,0,0,0],
+    [0,0,0,0,0,0,0,0,0,1,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0],
+]
 
 
 def crear_cajas():
-    global cajasmapa
+    cajasmapa[0].clear()
+    canvJuego.delete("Caja")
+    canvJuego.delete("Escalera")
+    canvJuego.delete("Lava")
+    # Posicion actual de la caja
     y0 = 0
     x0 = 0
-    for i in range(len(mapa)):
-        fila = mapa[i]
-        print(y0)
-        for j in range(len(mapa[i])):
-            if fila[j] == 1:
-                cajasmapa += [canvJuego.create_rectangle(x0,y0,x0 + 100, y0 + 100,fill="green")]
-                print(x0)
-            x0 += 100
-        y0 += 100
+    # Por cada fila en el mapa
+    for filai in range(len(mapa)):
+        fila = mapa[filai] # La fila actual
+        # Por cada caja en la fila
+        for caja in range(len(mapa[filai])):
+            if fila[caja] == 1: # Si es un 1 crea una caja normal
+                cajasmapa[0] += [canvJuego.create_rectangle(x0,y0,x0 + 75, y0 + 75,fill="green",tags="Caja")]
+            elif fila[caja] == 2:
+                cajasmapa[0] += [canvJuego.create_rectangle(x0,y0,x0 + 75, y0 + 75,fill="blue",tags="Escalera")]
+            elif fila[caja] == 3:
+                cajasmapa[0] += [canvJuego.create_rectangle(x0,y0+75,x0 + 75, y0+50,fill="orange",tags="Lava")]
+            # Pasa al proximo lugar horizontalmente
+            x0 += 75
+        # Pasa al proximo lugar verticalmente
+        y0 += 75
+        # Reinicia la posicion horizontal
         x0 = 0
-
+    canvJuego.tag_raise(p1) # Pone al jugador encima de todo
 
 crear_cajas()
-print(cajasmapa)
 
-""" Funciones un poco complicadas, lo que hacen es que detectan cada ingreso de la tecla y .bind() les asigna un evento.
-para poder llamar otras funciones con otras variables, se hace un lambda con parametro evento para que pueda guardar lo que asigna
-.bind() y ademas poder mandar ese evento mas las variables para el resto. Bueno asi creo que sirve pero puedo estar incorrecto""" 
+def crear_mapa_aleatorio():
+    cajasmapa[0] = []
+    for filai in range(len(mapa)):
+        fila = mapa[filai] # La fila actual
+        # Por cada caja en la fila
+        for caja in range(len(mapa[filai])):
+            fila[caja] = random.choice([0,0,0,0,0,0,0,1,2,3])
+    
+    crear_cajas()
 
-# Teclas para movimiento
-
-# presionar der
+# --- CONTROLES ---
 root.bind('<KeyPress-d>',   lambda e: presionar(e, "d")) 
 root.bind('<KeyPress-Right>',   lambda e: presionar(e, "d")) 
-# soltar der
+root.bind('<KeyPress-D>',   lambda e: presionar(e, "d")) 
+
 root.bind('<KeyRelease-d>', lambda e: soltar(e, "d")) 
 root.bind('<KeyRelease-Right>',   lambda e: soltar(e, "d")) 
+root.bind('<KeyRelease-D>',   lambda e: soltar(e, "d")) 
 
-# presionar izq
+
 root.bind('<KeyPress-Left>',   lambda e: presionar(e, "a")) 
 root.bind('<KeyPress-a>',   lambda e: presionar(e, "a")) 
-# soltar izq
+root.bind('<KeyPress-A>',   lambda e: presionar(e, "a")) 
+
 root.bind('<KeyRelease-a>', lambda e: soltar(e, "a")) 
 root.bind('<KeyRelease-Left>', lambda e: soltar(e, "a")) 
+root.bind('<KeyRelease-A>',   lambda e: soltar(e, "a")) 
 
-# Teclas para salto
-root.bind('<KeyPress-w>', saltar) # Prueba Se va a cabiar por el movimiento de escaleras
-root.bind('<KeyPress-Up>',saltar) # Prueba
+root.bind('<KeyPress-w>', saltar)
+root.bind('<KeyPress-Up>',saltar)
 root.bind('<KeyPress-space>',saltar)
 
-
-# Bucle de la ventana principal
+boton_mapa_aleatorio = tk.Button(text="Generar Mapa", command=lambda: crear_mapa_aleatorio())
+boton_mapa_aleatorio.pack()
 root.mainloop()
