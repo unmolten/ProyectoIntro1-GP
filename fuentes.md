@@ -29,3 +29,7 @@ baraltech. (2022, 3 marzo). Easy Way to Make Jumping in PyGame! (7 Mins) [Archiv
 Indierama. (2022, 19 septiembre). DELTATIME e independencia de FRAMERATE [Archivo de Vídeo]. YouTube. https://www.youtube.com/watch?v=IpPYrfsKeCQ
 
 Bytes N Bits. (2020, 3 enero). Bounding Box Collision Detection - Game Coding Tutorial [Archivo de Vídeo]. YouTube. https://www.youtube.com/watch?v=SoSHVoIZYbY
+
+Ritik Raj. (2023, 13 agosto) Displaying Gifs in Tkinter - Python [Publicacion en un foro en linea]. Hashnode. https://devhubcommunity.hashnode.dev/displaying-gifs-in-tkinter-python
+
+Zizouz. (2015, 14 febrero). Play Animations in GIF with Tkinter. Stack Overflow. https://stackoverflow.com/questions/28518072/play-animations-in-gif-with-tkinter
