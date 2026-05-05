@@ -131,10 +131,11 @@ def presionar(evento, tecla):
         a_held[0] = True
     elif tecla == "up": # arriba
         up_held[0] = True
-        escalera() # Llama a escaleras para el movimiento de las escaleras
 
     if bucles[0] == None: # Ademas revisa si no hay bucles previos para llamar la funcion de movimiento
         mover()
+    if bucles[2] == None: # Llama a escaleras para el movimiento de las escaleras
+        escalera() 
 
 # "Suelta" la tecla presionada
 def soltar(evento, tecla):
@@ -286,12 +287,18 @@ def escalera():
         if col[0] and col[1] and tag[0] == "Escalera":
             en_escalera = True
             vely[0] = 0 # Cancela la velocidad
-            # Va moviendo el jugador para arriba
+
+
+    if en_escalera and up_held[0]:
             canvJuego[0].move(p1[0],0,-10) 
             canvJuego[0].move(p1sprite[0],0,-10)
+
     # Si se mantiene arriba, esta en una escalera, y no se mueve horizontalmente 
-    if up_held[0] and en_escalera and not d_held[0] and not a_held[0]:
+    if up_held[0]:
         bucles[2] = root.after(16,escalera)
+    else:
+        bucles[2] = None
+
 
 
 """ Funciones para la logica de las colisiones (Documentación) """
@@ -370,12 +377,11 @@ def colision(caja):
 # Funcion para reiniciar el personaje e ir restando la cantidad de vidas
 def reiniciar():
     # Cancela todos los bucles de movimiento
-    root.after_cancel(bucles[0])
-    bucles[0] = None
-    root.after_cancel(bucles[1])
-    bucles[1] = None
-    root.after_cancel(bucles[2])
-    bucles[2] = None
+    for i in [0, 1, 2]:
+        if bucles[i] is not None:
+            root.after_cancel(bucles[i])
+            bucles[i] = None
+
     # Actualiza el label de las vidas para tener el valor actual
     labelvidas[0].config(text="Vidas: " + str(vidas[0]))
     # Si aun tiene vidas y se murio
@@ -385,12 +391,16 @@ def reiniciar():
         vidas[0] -= 1 # Resta 1 vida
         labelvidas[0].config(text="Vidas: " + str(vidas[0])) # Actualiza otra vez
 
+        # Reinicia estados de movimiento
+        vely[0] = 0
+        saltando[0] = False
+        d_held[0] = False
+        a_held[0] = False
+
         # Mueve el Jugador a la posicion inicial
-        if editado[0]:
-            canvJuego[0].moveto(p1[0], pos_jugador_editor[0], pos_jugador_editor[1])
-            canvJuego[0].moveto(p1sprite[0], pos_jugador_editor[0], pos_jugador_editor[1])
-        if not editado[0]:
-            canvJuego[0].moveto(p1sprite[0], pos_jugador_editor[0], pos_jugador_editor[1])
+        canvJuego[0].moveto(p1[0], pos_jugador_editor[0], pos_jugador_editor[1])
+        canvJuego[0].moveto(p1sprite[0], pos_jugador_editor[0], pos_jugador_editor[1])
+
     # Si solo tiene una vida al momento de muerte
     elif vidas[0] == 1:
         vidas[0] -= 1
@@ -627,9 +637,9 @@ def iniciar_juego(mapa):
     else:
         editado[0] = False
         pos_jugador_editor[0] = 0
-        pos_jugador_editor[1] = 750 
-        canvJuego[0].moveto(p1[0], pos_jugador_editor[0], pos_jugador_editor[1] - 60)
-        canvJuego[0].moveto(p1sprite[0], pos_jugador_editor[0], pos_jugador_editor[1] - 60)
+        pos_jugador_editor[1] = 700
+        canvJuego[0].moveto(p1[0], pos_jugador_editor[0], pos_jugador_editor[1])
+        canvJuego[0].moveto(p1sprite[0], pos_jugador_editor[0], pos_jugador_editor[1])
     
     # Labels y botones
     labeltiempo[0] = tk.Label(ventana_juego[0], text="0", font="Helvetica")
