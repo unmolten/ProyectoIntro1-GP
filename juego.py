@@ -369,6 +369,13 @@ def colision(caja):
 """ Funciones Extra """
 # Funcion para reiniciar el personaje e ir restando la cantidad de vidas
 def reiniciar():
+    # Cancela todos los bucles de movimiento
+    root.after_cancel(bucles[0])
+    bucles[0] = None
+    root.after_cancel(bucles[1])
+    bucles[1] = None
+    root.after_cancel(bucles[2])
+    bucles[2] = None
     # Actualiza el label de las vidas para tener el valor actual
     labelvidas[0].config(text="Vidas: " + str(vidas[0]))
     # Si aun tiene vidas y se murio
@@ -379,9 +386,11 @@ def reiniciar():
         labelvidas[0].config(text="Vidas: " + str(vidas[0])) # Actualiza otra vez
 
         # Mueve el Jugador a la posicion inicial
-        canvJuego[0].moveto(p1[0], pos_jugador_editor[0], pos_jugador_editor[1])
-        canvJuego[0].moveto(p1sprite[0], pos_jugador_editor[0], pos_jugador_editor[1])
-    
+        if editado[0]:
+            canvJuego[0].moveto(p1[0], pos_jugador_editor[0], pos_jugador_editor[1])
+            canvJuego[0].moveto(p1sprite[0], pos_jugador_editor[0], pos_jugador_editor[1])
+        if not editado[0]:
+            canvJuego[0].moveto(p1sprite[0], pos_jugador_editor[0], pos_jugador_editor[1])
     # Si solo tiene una vida al momento de muerte
     elif vidas[0] == 1:
         vidas[0] -= 1
@@ -407,10 +416,10 @@ mapa1 = [
     [0,1,1,1,1,1,1,1,1,0,0,0],
     [0,1,0,4,0,0,0,0,0,0,3,0],
     [0,1,0,0,0,1,0,0,1,1,1,1],
-    [0,1,3,0,0,0,1,0,0,0,0,0],
+    [0,1,3,0,0,0,1,0,0,0,0,0], 
     [0,1,1,1,0,0,0,0,3,0,0,0],
-    [0,1,0,0,0,1,1,0,1,2,0,0],
-    [0,1,3,3,3,0,0,0,0,2,0,0],
+    [0,1,0,0,0,1,1,0,1,0,0,0],
+    [0,1,3,3,3,0,0,0,0,0,0,0],
     [1,1,1,1,1,1,1,1,1,2,0,0],
     [0,0,0,1,0,0,0,0,0,2,0,0],
     [0,1,0,0,0,1,0,0,0,2,0,0],
